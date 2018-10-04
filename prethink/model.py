@@ -52,10 +52,6 @@ class BaseModel(type):
 		return new_class
 
 
-def do_insert(table, data, connection):
-	return r.table(table).insert(data, return_changes=True).run(connection)
-
-
 @add_metaclass(BaseModel)
 class Model(object):
 	def __init__(self, **kwargs):
@@ -75,14 +71,6 @@ class Model(object):
 		#if 'id' not in self._data:
 		#	self._data['id'] = None
 
-	@property
-	def data(self):
-		return self._data
-
-	def dump(self):
-		print(self._data)
-		return json.dumps(self._data)
-
 	def __setattr__(self, key, value):
 		# check if we have a field called *key
 		field = self._fields.get(key, None)
@@ -91,12 +79,56 @@ class Model(object):
 			field.validate(value)
 			# validate the value here
 			self._data[key] = value
+		elif key == 'id':
+			#print('set id')
+			self._data['id'] = value
 
 	def __getattr__(self, key):
 		field = self._fields.get(key)
 		if field or key == 'id':
 			return self._data.get(key)
 		raise AttributeError("'Model' object has no attribute '%s'" % key)
+
+	def __repr__(self):
+		return '<%s object>' % self.__class__.__name__
+
+	@classmethod
+	def all(cls, raw=False):
+		connection = get_connection()
+		table = r.table(cls._table)
+		result = next(table.run(connection))
+		if raw:
+			yield result
+		else:
+			yield cls(**result)
+
+	@classmethod
+	def get(cls, _id, raw=False):
+		connection = get_connection()
+		table = r.table(cls._table)
+		result = table.get(_id).run(connection)
+		if raw:
+			return result
+		else:
+			return cls(**result)
+
+	@classmethod
+	def filter(cls, filters, raw=False):
+		connection = get_connection()
+		table = r.table(cls._table)
+		result = next(table.filter(filters).run(connection))
+		if raw:
+			yield result
+		else:
+			yield cls(**result)
+
+	@property
+	def data(self):
+		return self._data
+
+	def dump(self):
+		print(self._data)
+		return json.dumps(self._data)
 
 	def get_table(self):
 		table = r.table(self._table)
