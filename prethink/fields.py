@@ -69,5 +69,13 @@ class FloatField(BaseField):
 		return float(value)
 
 
+class ReferenceField(BaseField):
+	def __init__(self, cls):
+		self.reference = cls
+
+	def validate(self, value):
+		return True
+
+
 class DictField(BaseField):
 	pass

@@ -1,56 +1,42 @@
-import uuid
-try:
-	import ujson as json
-except ImportError:
-	import json
-import rethinkdb as r
-#from rethinkdb import errors as rt_errors
-from six import add_metaclass
-from inflection import tableize
+from numbers import Number
 
-from prethink.connection import get_connection
+from six import string_types
+from six import integer_types
+from six import add_metaclass
+
+from inflection import tableize
+from inflection import singularize
+
+from prethink.errors import ValidationError
 from prethink.fields import ReferenceField
 from prethink.fields import BaseField
 
 
-class BaseModel(type):
+class BaseRelationship(type):
 	def __new__(cls, clsname, bases, dct):
-		#print('cls: %s' % cls)
-		#print('clsname: %s' % clsname)
-		#print('bases: %s' % bases)
-		#print('dct: %s' % dct)
-		super_new = super(BaseModel, cls).__new__
+		super_new = super(BaseRelationship, cls).__new__
 		new_class = super_new(cls, clsname, bases, dct)
 
-		#new_class._fields = dct.get('_fields', OrderedDict())
-		# everything that is passed to the class
-		# and does not start with double underscore
-		# we treat as a database field and
-		# set it to the _fields dict
-
 		new_class._fields = {}
-		#new_class._data = {}
-		#print('dct.items()')
-		#new_class._fields['pk'] = 'id'
+		models = 0
 		for key, value in dct.items():
 			if not key.startswith('__'):
+				if isinstance(value, ReferenceField):
+					models += 1
+					if models > 2:
+						raise AttributeError('A relationship cannot have more than 2 models')
+					print('add new relationship to %s' % value.reference)
 				new_class._fields[key] = value
 
-		# set table name to clsname, maybe switch to inflection here
-		# https://inflection.readthedocs.io/en/latest/#inflection.tableize
 		new_class._table = tableize(clsname)
 		new_class._table_exists = False
 		new_class._pk = 'id'
 
-		#print(new_class.__dict__)
 		return new_class
 
 
-@add_metaclass(BaseModel)
-class Model(object):
-	#def __new__(cls, *args, **kwargs):
-	#	print('__new__')
-	#	super(Model, cls).__new__(cls)
+@add_metaclass(BaseRelationship)
+class Relationship(object):
 
 	def __init__(self, saved=False, **kwargs):
 		self.__dict__['_data'] = {}
@@ -206,3 +192,47 @@ class Model(object):
 			result = self.insert()
 
 		return result
+
+
+# 1..*
+# one-to-many
+# many-to-many
+@add_metaclass(BaseRelationship)
+class HasMany(object):
+	pass
+
+
+# *..1
+# one-to-one
+# many-to-one
+@add_metaclass(BaseRelationship)
+class HasOne(object):
+	pass
+
+
+class Reference():
+	def __init__(self, cls):
+		self.refers_to = cls
+
+	def add(self, item):
+		if not isinstance(item, self.refers_to):
+			raise ValidationError('Value must be of type: %s' % self.refers_to)
+		else:
+			print('what the hell to do here?')
+			print('update some tables maybe?')
+			print('add %s to table' % item.id)
+
+
+def link(class1, class2):
+	print('linking %s and %s' % (class1.__name__, class2.__name__))
+	class1._fields[tableize(class2.__name__)] = Reference(class2)
+	class2._fields[tableize(class1.__name__)] = Reference(class1)
+	#return tableize(class1.__name__), tableize(class2.__name__)
+
+
+def associate(item1, item2):
+	item1_id = singularize(item1._table) + '_id'
+	item2_id = singularize(item2._table) + '_id'
+	data = {}
+	data[item1_id] = item1.id
+	data[item2_id] = item2.id
