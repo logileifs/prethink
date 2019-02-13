@@ -1,4 +1,5 @@
 import uuid
+import copy
 try:
 	import ujson as json
 except ImportError:
@@ -6,11 +7,14 @@ except ImportError:
 import rethinkdb as r
 #from rethinkdb import errors as rt_errors
 from six import add_metaclass
+import marshmallow.exceptions
+from marshmallow import Schema
 from inflection import tableize
 
 from prethink.connection import get_connection
-from prethink.fields import ReferenceField
-from prethink.fields import BaseField
+#from prethink.fields import ReferenceField
+#from prethink.fields import BaseField
+from marshmallow.fields import Field as BaseField
 
 
 class BaseModel(type):
@@ -29,18 +33,29 @@ class BaseModel(type):
 		# set it to the _fields dict
 
 		new_class._fields = {}
+		fields_copy = {}
 		#new_class._data = {}
 		#print('dct.items()')
 		#new_class._fields['pk'] = 'id'
 		for key, value in dct.items():
 			if not key.startswith('__'):
 				new_class._fields[key] = value
+				fields_copy[key] = value
 
+		print('new_class._fields: %s' % new_class._fields)
 		# set table name to clsname, maybe switch to inflection here
 		# https://inflection.readthedocs.io/en/latest/#inflection.tableize
 		new_class._table = tableize(clsname)
 		new_class._table_exists = False
 		new_class._pk = 'id'
+
+		new_class._schema = type(
+			clsname + 'Schema',
+			(Schema,),
+			fields_copy
+		)
+		print('new_class._schema: %s' % new_class._schema)
+		print('new_class._fields: %s' % new_class._fields)
 
 		#print(new_class.__dict__)
 		return new_class
@@ -70,13 +85,18 @@ class Model(object):
 		# if id has not been supplied we set it
 		if 'id' not in self._data:
 			self._data['id'] = str(uuid.uuid4())
+		errors = self._schema().validate(self._data)
+		if errors:
+			raise marshmallow.exceptions.ValidationError(errors)
 
 	def __setattr__(self, key, value):
+		print('__setattr__')
 		# check if we have a field called *key
 		field = self._fields.get(key, None)
 		# only set the value if there is a defined field for it
 		if field is not None:
-			field.validate(value)
+			#field.validate(value)
+			#self._validate(key, value)
 			# validate the value here
 			self._data[key] = value
 		elif key == 'id':
@@ -94,6 +114,14 @@ class Model(object):
 		class_name = self.__class__.__name__
 		_id = self._data.get('id')
 		return '<%s object %s>' % (class_name, _id,)
+
+	def _validate(self, field, value):
+		print('validate')
+		try:
+			self._schema.load({field: value}, partial=True)
+		except marshmallow.exceptions.ValidationError as ve:
+			print('marshmallow ValidationError')
+			raise ve
 
 	@classmethod
 	def all(cls, raw=False):
