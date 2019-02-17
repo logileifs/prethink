@@ -1,5 +1,5 @@
 import uuid
-import copy
+#import copy
 try:
 	import ujson as json
 except ImportError:
@@ -9,6 +9,7 @@ import rethinkdb as r
 from six import add_metaclass
 import marshmallow.exceptions
 from marshmallow import Schema
+from marshmallow import fields
 from inflection import tableize
 
 from prethink.connection import get_connection
@@ -19,10 +20,6 @@ from marshmallow.fields import Field as BaseField
 
 class BaseModel(type):
 	def __new__(cls, clsname, bases, dct):
-		#print('cls: %s' % cls)
-		#print('clsname: %s' % clsname)
-		#print('bases: %s' % bases)
-		#print('dct: %s' % dct)
 		super_new = super(BaseModel, cls).__new__
 		new_class = super_new(cls, clsname, bases, dct)
 
@@ -34,68 +31,59 @@ class BaseModel(type):
 
 		new_class._fields = {}
 		fields_copy = {}
-		#new_class._data = {}
-		#print('dct.items()')
-		#new_class._fields['pk'] = 'id'
 		for key, value in dct.items():
 			if not key.startswith('__'):
 				new_class._fields[key] = value
 				fields_copy[key] = value
 
-		print('new_class._fields: %s' % new_class._fields)
 		# set table name to clsname, maybe switch to inflection here
 		# https://inflection.readthedocs.io/en/latest/#inflection.tableize
 		new_class._table = tableize(clsname)
 		new_class._table_exists = False
 		new_class._pk = 'id'
 
+		fields_copy['id'] = fields.UUID(required=True)
 		new_class._schema = type(
 			clsname + 'Schema',
 			(Schema,),
 			fields_copy
 		)
-		print('new_class._schema: %s' % new_class._schema)
-		print('new_class._fields: %s' % new_class._fields)
-
-		#print(new_class.__dict__)
 		return new_class
 
 
 @add_metaclass(BaseModel)
 class Model(object):
-	#def __new__(cls, *args, **kwargs):
-	#	print('__new__')
-	#	super(Model, cls).__new__(cls)
 
 	def __init__(self, saved=False, **kwargs):
 		self.__dict__['_data'] = {}
 		self.__dict__['_saved'] = saved
-		#if data:
-		#	for key, value in data.items():
-		#		setattr(self, key, value)
 		for key, value in self._fields.items():
-			if isinstance(value, BaseField):
+			#print('key, value in self._fields.items')
+			if isinstance(value, fields.Nested):
+				print('value is fields.Nested instance')
+				print('key: %s value: %s' % (key, value))
+				if value.many:
+					print('MANY!!!')
+					self._data[key] = []
+			elif isinstance(value, BaseField):
 				self._data[key] = None
 			else:
 				self._data[key] = value
 		for key, value in kwargs.items():
+			#print('key, value in kwargs.items')
 			# Assign fields this way to be sure
 			# that validation takes place
 			setattr(self, key, value)
 		# if id has not been supplied we set it
 		if 'id' not in self._data:
 			self._data['id'] = str(uuid.uuid4())
-		errors = self._schema().validate(self._data)
-		if errors:
-			raise marshmallow.exceptions.ValidationError(errors)
 
 	def __setattr__(self, key, value):
-		print('__setattr__')
+		print('__setattr__ %s: %s' % (key, value))
 		# check if we have a field called *key
 		field = self._fields.get(key, None)
 		# only set the value if there is a defined field for it
 		if field is not None:
-			#field.validate(value)
 			#self._validate(key, value)
 			# validate the value here
 			self._data[key] = value
@@ -115,13 +103,10 @@ class Model(object):
 		_id = self._data.get('id')
 		return '<%s object %s>' % (class_name, _id,)
 
-	def _validate(self, field, value):
-		print('validate')
-		try:
-			self._schema.load({field: value}, partial=True)
-		except marshmallow.exceptions.ValidationError as ve:
-			print('marshmallow ValidationError')
-			raise ve
+	def validate(self):
+		errors = self._schema().validate(self._data)
+		if errors:
+			raise marshmallow.exceptions.ValidationError(errors)
 
 	@classmethod
 	def all(cls, raw=False):
@@ -158,12 +143,10 @@ class Model(object):
 		else:
 			yield cls(**result)
 
-	@property
 	def data(self):
 		return self._data
 
-	def dump(self):
-		print(self._data)
+	def json(self):
 		return json.dumps(self._data)
 
 	def get_table(self):
@@ -182,16 +165,15 @@ class Model(object):
 			self._data,
 			return_changes=True
 		).run(connection)
-		#print(result)
 		errors = result['errors']
 		if errors == 0:
 			self.__dict__['_saved'] = True
-			print('_saved set to True')
 			if not self._data.get('id'):
 				self._data['id'] = result['generated_keys'][0]
 		return result
 
 	def insert(self):
+		self.validate()
 		try:
 			result = self._do_insert()
 		except r.errors.ReqlOpFailedError:
@@ -211,6 +193,7 @@ class Model(object):
 		return result
 
 	def update(self):
+		self.validate()
 		try:
 			result = self._do_update()
 		except r.errors.ReqlOpFailedError:
