@@ -1,3 +1,4 @@
+.PHONY: requirements
 
 test:
 	nosetests tests/
@@ -7,3 +8,6 @@ db-up:
 
 db-down:
 	docker rm -f rethink
+
+requirements:
+	pipenv run pip freeze > requirements
