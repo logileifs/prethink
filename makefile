@@ -1,3 +1,4 @@
+.PHONY: test db-up db-down vendor
 
 test:
 	nosetests tests/
@@ -7,3 +8,6 @@ db-up:
 
 db-down:
 	docker rm -f rethink
+
+vendor:
+	pip install --target=./prethink/vendor/ rethinkdb

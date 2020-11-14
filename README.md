@@ -5,7 +5,7 @@ Python rethink ODM, async and beautiful
 ```python
 #from prethink import Table, Schema, fields
 import uuid
-from .prethink.new_test import Table, connect, row
+from prethink import Table, connect, row
 from marshmallow import Schema, fields
 
 
