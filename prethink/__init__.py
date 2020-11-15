@@ -28,6 +28,7 @@ from prethink.errors import ValidationError
 current_db = 'test'
 connections = []
 registry = {}
+db = r.db(current_db)
 
 logging.basicConfig(level='INFO')
 log = logging.getLogger(__name__)
@@ -84,6 +85,7 @@ def connection():
 
 
 async def connect(*args, **kwargs):
+	log.debug(f'kwargs: {kwargs}')
 	global current_db
 	#pool_size = kwargs.pop('pool_size', 4)
 	debug = kwargs.pop('debug', False)
@@ -93,6 +95,7 @@ async def connect(*args, **kwargs):
 	current_db = kwargs.get('db', 'test')
 	await pool.initialize(*args, **kwargs)
 	if create_tables:
+		log.debug('create_tables')
 		await tables_create()
 
 
@@ -103,11 +106,15 @@ def close(noreply_wait=False):
 async def tables_create():
 	for tablename, cls in registry.items():
 		try:
-			cls.create_table().run()
+			log.debug(f'creating table: {tablename}')
+			res = await cls.create_table().run()
+			log.debug(f'res: {res}')
 		except ReqlOpFailedError as ex:
+			log.debug('exception')
 			message = f'Table `{current_db}.{tablename}` already exists.'
 			if ex.message == message:
 				# table already exists
+				log.debug('table already exists')
 				pass
 			else:
 				raise ex
@@ -160,6 +167,7 @@ list_statements = [
 
 @asyncio.coroutine
 def handle_result(gen, data, table, statement=None):
+	log.debug('handle_result')
 	log.debug(f'statement: {statement}')
 	cls = registry.get(table, None)
 	try:
@@ -172,7 +180,7 @@ def handle_result(gen, data, table, statement=None):
 			return []
 
 	docs = []
-	if statement == 'get':
+	if statement == 'get' or statement == 'nth':
 		return Document(_table=table, **res)
 	if statement in cursor_statements:
 		docs = yield from handle_cursor(res, table, cls)
@@ -201,6 +209,7 @@ handled_statements = [
 	'update',
 	'table',
 	'get',
+	'nth',
 ]
 
 
@@ -210,6 +219,7 @@ def run(self, c=None, **global_optargs):
 	log.debug(f'self: {self}')
 	log.debug(f'global_optargs: {global_optargs}')
 	statement = getattr(self, 'statement', None)
+	log.debug(f'statement: {statement}')
 	raw = getattr(self, 'raw', False)
 	with connection() as c:
 		if c is None:
@@ -220,12 +230,16 @@ def run(self, c=None, **global_optargs):
 				)
 			)
 		res = c._start(self, **global_optargs)
+		log.debug(f'res1: {res}')
 
 	if not raw and statement in handled_statements:
 		log.debug('not raw')
 		log.debug(f'statement: {statement}')
 		res = handle_result(res, self.data, self.table, statement)
+	else:
+		log.debug('raw')
 
+	log.debug(f'res: {res}')
 	return res
 
 
@@ -339,6 +353,11 @@ class Table(metaclass=TableMeta):
 	def create_table(cls):
 		global current_db
 		return r.db(current_db).table_create(cls._table)
+
+	@classmethod
+	def drop_table(cls):
+		global current_db
+		return r.db(current_db).table_drop(cls._table)
 
 	@classmethod
 	def all(cls):
