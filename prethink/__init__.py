@@ -22,8 +22,7 @@ from rethinkdb.errors import ReqlDriverError
 from rethinkdb.asyncio_net import net_asyncio
 from rethinkdb.errors import ReqlOpFailedError
 
-# TODO: remove this import and use own ValidationError
-from marshmallow.exceptions import ValidationError
+from prethink.errors import ValidationError
 
 
 current_db = 'test'
@@ -169,6 +168,7 @@ def handle_result(gen, data, table, statement=None):
 		message = f'Table `{current_db}.{table}` does not exist.'
 		if ex.message == message:
 			# table has not been created yet
+			log.debug('table does not exist')
 			return []
 
 	docs = []
@@ -229,7 +229,17 @@ def run(self, c=None, **global_optargs):
 	return res
 
 
+def update(self, *args, **kwargs):
+	log.debug('update')
+	log.debug(f'self: {self}')
+	log.debug(f'args: {args}')
+	kwargs['return_changes'] = True
+	log.debug(f'kwargs: {kwargs}')
+	return ast.Update(self, *[ast.func_wrap(arg) for arg in args], **kwargs)
+
+
 ast.RqlQuery.run = run
+ast.RqlQuery.update = update
 ast.RqlQuery.__init__ = __init__
 ast.Table.get = get
 
