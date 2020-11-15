@@ -57,10 +57,35 @@ async def main():
 
 
 	# you must take care of creating the table yourself
-	await Posts.create_table().run()
+	await Authors.create_table().run()
+	#{
+	#	'config_changes': [
+	#		{
+	#			'new_val': {
+	#				'db': 'test',
+	#				'durability': 'hard',
+	#				'id': '6631a32f-70ce-4e5b-b50e-a4e200564ff9',
+	#				'indexes': [],
+	#				'name': 'authors',
+	#				'primary_key': 'id',
+	#				'shards': [
+	#					{
+	#						'nonvoting_replicas': [],
+	#						'primary_replica': '5d66b4a75d59_2b7',
+	#						'replicas': ['5d66b4a75d59_2b7']
+	#					}
+	#				],
+	#				'write_acks': 'majority'
+	#			},
+	#			'old_val': None
+	#		}
+	#	],
+	#	'tables_created': 1
+	#}
 
 	# get all documents in the Authors table
 	await Authors.all().run()
+	# []
 
 	# insert one document
 	await Authors.insert(
@@ -83,6 +108,34 @@ async def main():
 			]
 		}
 	).run()
+	#{
+	#	'result': [
+	#		{
+	#			"id": "eb0c994c-ca32-43b5-ad4d-689905d97802",
+	#			"name": "William Adama",
+	#			"posts": [
+	#				{
+	#					"content": "The Cylon War is long over...",
+	#					"title": "Decommissioning speech"
+	#				},
+	#				{
+	#					"content": "Moments ago, this ship received...",
+	#					"title": "We are at war"
+	#				},
+	#				{
+	#					"content": "The discoveries of the past few days...",
+	#					"title": "The new Earth"
+	#				}
+	#			],
+	#			"tv_show": "Battlestar Galactica"
+	#		}
+	#	],
+	#	'deleted': 0,
+	#	'errors': 0,
+	#	'replaced': 0,
+	#	'skipped': 0,
+	#	'unchanged': 0
+	#}
 
 	# insert multiple documents
 	await Authors.insert(
@@ -113,20 +166,186 @@ async def main():
 			}
 		]
 	).run()
+	#{
+	#	'result': [
+	#		{
+	#			"id": "6327d831-3ff9-4ea4-a5a9-5afd16695ec5",
+	#			"name": "Laura Roslin",
+	#			"posts": [
+	#				{
+	#					"content": "I, Laura Roslin, ...",
+	#					"title": "The oath of office"
+	#				},
+	#				{
+	#					"content": "The Cylons have the ability...",
+	#					"title": "They look like us"
+	#				}
+	#			],
+	#			"tv_show": "Battlestar Galactica"
+	#		},
+	#		{
+	#			"id": "94b40c44-b571-4c57-8a0c-f8fdeba9c965",
+	#			"name": "Jean-Luc Picard",
+	#			"posts": [
+	#				{
+	#					"content": "There are some words I've known since...",
+	#					"title": "Civil rights"
+	#				}
+	#			],
+	#			"tv_show": "Star Trek TNG"
+	#		}
+	#	],
+	#	'deleted': 0,
+	#	'errors': 0,
+	#	'replaced': 0,
+	#	'skipped': 0,
+	#	'unchanged': 0
+	#}
 
 	# get all documents in the Authors table
 	await Authors.all().run()
+	#[
+	#	{
+	#		"id": "eb0c994c-ca32-43b5-ad4d-689905d97802",
+	#		"name": "William Adama",
+	#		"posts": [
+	#			{
+	#				"content": "The Cylon War is long over...",
+	#				"title": "Decommissioning speech"
+	#			},
+	#			{
+	#				"content": "Moments ago, this ship received...",
+	#				"title": "We are at war"
+	#			},
+	#			{
+	#				"content": "The discoveries of the past few days...",
+	#				"title": "The new Earth"
+	#			}
+	#		],
+	#		"tv_show": "Battlestar Galactica"
+	#	},
+	#	{
+	#		"id": "94b40c44-b571-4c57-8a0c-f8fdeba9c965",
+	#		"name": "Jean-Luc Picard",
+	#		"posts": [
+	#			{
+	#				"content": "There are some words I've known since...",
+	#				"title": "Civil rights"
+	#			}
+	#		],
+	#		"tv_show": "Star Trek TNG"
+	#	},
+	#	{
+	#		"id": "6327d831-3ff9-4ea4-a5a9-5afd16695ec5",
+	#		"name": "Laura Roslin",
+	#		"posts": [
+	#			{
+	#				"content": "I, Laura Roslin, ...",
+	#				"title": "The oath of office"
+	#			},
+	#			{
+	#				"content": "The Cylons have the ability...",
+	#				"title": "They look like us"
+	#			}
+	#		],
+	#		"tv_show": "Battlestar Galactica"
+	#	}
+	#]
 
 	await Authors.filter(row['name'] == 'William Adama').run()
+	#[
+	#	{
+	#		"id": "eb0c994c-ca32-43b5-ad4d-689905d97802",
+	#		"name": "William Adama",
+	#		"posts": [
+	#			{"content": "The Cylon War is long over...", "title": "Decommissioning speech"},
+	#			{"content": "Moments ago, this ship received...", "title": "We are at war"},
+	#			{"content": "The discoveries of the past few days...", "title": "The new Earth"}
+	#		],
+	#		"tv_show": "Battlestar Galactica"
+	#	}
+	#]
 
 	await Authors.filter({'name': 'William Adama'}).run()
+	#[
+	#	{
+	#		"id": "eb0c994c-ca32-43b5-ad4d-689905d97802",
+	#		"name": "William Adama",
+	#		"posts": [
+	#			{"content": "The Cylon War is long over...", "title": "Decommissioning speech"},
+	#			{"content": "Moments ago, this ship received...", "title": "We are at war"},
+	#			{"content": "The discoveries of the past few days...", "title": "The new Earth"}
+	#		],
+	#		"tv_show": "Battlestar Galactica"
+	#	}
+	#]
 
 	await Authors.filter(row['posts'].count() > 2).run()
+	#[
+	#	{
+	#		"id": "eb0c994c-ca32-43b5-ad4d-689905d97802",
+	#		"name": "William Adama",
+	#		"posts": [
+	#			{"content": "The Cylon War is long over...", "title": "Decommissioning speech"},
+	#			{"content": "Moments ago, this ship received...", "title": "We are at war"},
+	#			{"content": "The discoveries of the past few days...", "title": "The new Earth"}
+	#		],
+	#		"tv_show": "Battlestar Galactica"
+	#	}
+	#]
 
-	await Authors.get('53980aa2-8d4d-42b0-bfce-6c00f3327586').run()
+	await Authors.get('94b40c44-b571-4c57-8a0c-f8fdeba9c965').run()
+	#{
+	#	"id": "94b40c44-b571-4c57-8a0c-f8fdeba9c965",
+	#	"name": "Jean-Luc Picard",
+	#	"posts": [
+	#		{"content": "There are some words I've known since...", "title": "Civil rights"}
+	#	],
+	#	"tv_show": "Star Trek TNG"
+	#}
 
 	await Authors.update({'type': 'fictional'}).run()
+	#{
+	#	'result': [
+	#		{
+	#			"id": "eb0c994c-ca32-43b5-ad4d-689905d97802",
+	#			"name": "William Adama",
+	#			"posts": [
+	#				{"content": "The Cylon War is long over...", "title": "Decommissioning speech"},
+	#				{"content": "Moments ago, this ship received...", "title": "We are at war"},
+	#				{"content": "The discoveries of the past few days...", "title": "The new Earth"}
+	#			],
+	#			"tv_show": "Battlestar Galactica",
+	#			"type": "fictional"
+	#		},
+	#		{
+	#			"id": "94b40c44-b571-4c57-8a0c-f8fdeba9c965",
+	#			"name": "Jean-Luc Picard",
+	#			"posts": [
+	#				{"content": "There are some words I've known since...", "title": "Civil rights"}
+	#			],
+	#			"tv_show": "Star Trek TNG",
+	#			"type": "fictional"
+	#		},
+	#		{
+	#			"id": "6327d831-3ff9-4ea4-a5a9-5afd16695ec5",
+	#			"name": "Laura Roslin",
+	#			"posts": [
+	#				{"content": "I, Laura Roslin, ...", "title": "The oath of office"},
+	#				{"content": "The Cylons have the ability...", "title": "They look like us"}
+	#			],
+	#			"tv_show": "Battlestar Galactica",
+	#			"type": "fictional"
+	#		}
+	#	],
+	#	'deleted': 0,
+	#	'errors': 0,
+	#	'replaced': 3,
+	#	'skipped': 0,
+	#	'unchanged': 0
+	#}
 
+	# not working - need to fix
 	await Authors.filter(
 		row['name'] == 'William Adama'
 	).update({'rank': 'Admiral'}).run()
