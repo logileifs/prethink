@@ -23,7 +23,7 @@ tests = ["pytest", "pytz", "simplejson"]
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6"
-content-hash = "1dac25ac6c949c0568f438d1f762bbf9bcdd465eee190d8c058f5b57e6c361cd"
+content-hash = "ed86b992a70edd39ac2d46c2210318a9b73a1f5d740104d8dc06a00d91c32235"
 
 [metadata.files]
 inflection = [
