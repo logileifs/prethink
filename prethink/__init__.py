@@ -1,15 +1,9 @@
-from .table import Table
-from .document import Document
-from .table import connect
-from . import fields
-from marshmallow import Schema
 import os
 import sys
 import json
 import asyncio
 import logging
 from queue import Queue
-from contextlib import asynccontextmanager
 from contextlib import contextmanager
 
 from inflection import tableize
@@ -28,6 +22,7 @@ from rethinkdb.errors import ReqlDriverError
 from rethinkdb.asyncio_net import net_asyncio
 from rethinkdb.errors import ReqlOpFailedError
 
+# TODO: remove this import and use own ValidationError
 from marshmallow.exceptions import ValidationError
 
 
@@ -78,15 +73,6 @@ class Pool:
 
 
 pool = Pool(_connect, 4)
-
-
-@asynccontextmanager
-async def connection_async():
-	conn = pool.get_connection()
-	try:
-		yield conn
-	finally:
-		pool.put_connection(conn)
 
 
 @contextmanager
@@ -175,6 +161,7 @@ list_statements = [
 
 @asyncio.coroutine
 def handle_result(gen, data, table, statement=None):
+	log.debug(f'statement: {statement}')
 	cls = registry.get(table, None)
 	try:
 		res = yield from gen
@@ -196,10 +183,11 @@ def handle_result(gen, data, table, statement=None):
 			inserted = c['new_val']
 			docs.append(Document(_table=table, **inserted))
 		new_res['result'] = docs
-		new_res['deleted'] = res['deleted']
 		new_res['errors'] = res['errors']
-		new_res['replaced'] = res['replaced']
 		new_res['skipped'] = res['skipped']
+		new_res['deleted'] = res['deleted']
+		new_res['inserted'] = res['inserted']
+		new_res['replaced'] = res['replaced']
 		new_res['unchanged'] = res['unchanged']
 		return new_res
 	#if len(docs) == 1:
@@ -218,6 +206,9 @@ handled_statements = [
 
 # Send this query to the server to be executed
 def run(self, c=None, **global_optargs):
+	log.debug('run')
+	log.debug(f'self: {self}')
+	log.debug(f'global_optargs: {global_optargs}')
 	statement = getattr(self, 'statement', None)
 	raw = getattr(self, 'raw', False)
 	with connection() as c:
@@ -238,7 +229,6 @@ def run(self, c=None, **global_optargs):
 	return res
 
 
-# TODO: find a way to monkey patch only for prethink calls
 ast.RqlQuery.run = run
 ast.RqlQuery.__init__ = __init__
 ast.Table.get = get
@@ -388,6 +378,10 @@ class Table(metaclass=TableMeta):
 			return_changes=True,
 			**kwargs
 		)
+
+	@classmethod
+	def count(cls, *args):
+		return ast.Table(cls._table).count(*args)
 
 	@classmethod
 	def merge(cls, *args, **kwargs):
