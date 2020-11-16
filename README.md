@@ -57,7 +57,7 @@ async def main():
 
 
 	# you must take care of creating the table yourself
-	await Authors.create_table().run()
+	await Posts.create_table().run()
 	#{
 	#	'config_changes': [
 	#		{
@@ -66,7 +66,7 @@ async def main():
 	#				'durability': 'hard',
 	#				'id': '6631a32f-70ce-4e5b-b50e-a4e200564ff9',
 	#				'indexes': [],
-	#				'name': 'authors',
+	#				'name': 'posts',
 	#				'primary_key': 'id',
 	#				'shards': [
 	#					{
