@@ -72,9 +72,9 @@ class UnitTests(TestCase):
 		pass
 
 	async def tearDown(self):
-		pass
+		await clean_table('authors')
 
-	async def test_1(self):
+	async def test_get_all(self):
 		all_authors = await Authors.all().run()
 		assert_equal(len(all_authors), 0)
 
@@ -83,7 +83,7 @@ class UnitTests(TestCase):
 		with assert_raises(ValidationError):
 			await Authors.insert({'i': 'do', 'not': 'fit', 'in': 'schema'}).run()
 
-	async def test_insert(self):
+	async def test_insert_one(self):
 		william_adama = {
 			"name": "William Adama",
 			"tv_show": "Battlestar Galactica",
@@ -108,8 +108,73 @@ class UnitTests(TestCase):
 		assert_equal(res['replaced'], 0)
 		assert_equal(res['deleted'], 0)
 		assert_equal(res['skipped'], 0)
-		inserted = res['result']
+		inserted = res['result'][0]
 		assert_true(isinstance(inserted, Document))
 		assert_true(inserted.id)
 		william_adama['id'] = inserted.id
-		assert_dict_equal(res['result'].__dict__, william_adama)
+		assert_dict_equal(inserted.__dict__, william_adama)
+
+	async def test_insert_many(self):
+		laura_roslin = {
+			"name": "Laura Roslin",
+			"tv_show": "Battlestar Galactica",
+			"posts": [
+				{
+					"title": "The oath of office",
+					"content": "I, Laura Roslin, ..."
+				},
+				{
+					"title": "They look like us",
+					"content": "The Cylons have the ability..."
+				}
+			]
+		}
+		jean_luc_picard = {
+			"name": "Jean-Luc Picard",
+			"tv_show": "Star Trek TNG",
+			"posts": [
+				{
+					"title": "Civil rights",
+					"content": "There are some words I've known since..."
+				}
+			]
+		}
+		res = await Authors.insert([laura_roslin, jean_luc_picard]).run()
+		assert_equal(res['unchanged'], 0)
+		assert_equal(res['inserted'], 2)
+		assert_equal(res['replaced'], 0)
+		assert_equal(res['deleted'], 0)
+		assert_equal(res['skipped'], 0)
+		inserted = res['result']
+		assert_equal(len(inserted), 2)
+		for i in inserted:
+			assert_true(isinstance(i, Document))
+
+	async def test_delete_one(self):
+		william_adama = {
+			"name": "William Adama",
+			"tv_show": "Battlestar Galactica",
+			"posts": [
+				{
+					"title": "Decommissioning speech",
+					"content": "The Cylon War is long over..."
+				},
+				{
+					"title": "We are at war",
+					"content": "Moments ago, this ship received..."
+				},
+				{
+					"title": "The new Earth",
+					"content": "The discoveries of the past few days..."
+				}
+			]
+		}
+		res = await Authors.insert(william_adama).run()
+		assert_equal(await Authors.count().run(), 1)
+		adama = res['result'][0]
+		res = await Authors.get(adama.id).delete().run()
+		assert_equal(await Authors.count().run(), 0)
+
+	@skip
+	async def test_delete_many(self):
+		pass

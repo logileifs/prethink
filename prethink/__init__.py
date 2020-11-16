@@ -164,7 +164,7 @@ cursor_statements = [
 list_statements = [
 	'insert',
 	'update',
-	'delete'
+	#'delete'
 ]
 
 
@@ -185,44 +185,39 @@ def handle_result(gen, data, table, statement=None):
 	docs = []
 	if statement == 'get' or statement == 'nth':
 		return Document(_table=table, **res)
-	if statement == 'insert' and isinstance(data, dict):
-		log.debug('statement: insert and data: dict')
-		new_res = {}
-		inserted = res['changes'][0]['new_val']
-		new_res['result'] = Document(_table=table, **inserted)
-		new_res['errors'] = res['errors']
-		new_res['skipped'] = res['skipped']
-		new_res['deleted'] = res['deleted']
-		new_res['inserted'] = res['inserted']
-		new_res['replaced'] = res['replaced']
-		new_res['unchanged'] = res['unchanged']
-		return new_res
 	if statement in cursor_statements:
 		docs = yield from handle_cursor(res, table, cls)
-	if statement in list_statements:
+		return docs
+
+	new_res = {}
+	new_res['errors'] = res['errors']
+	new_res['skipped'] = res['skipped']
+	new_res['deleted'] = res['deleted']
+	new_res['inserted'] = res['inserted']
+	new_res['replaced'] = res['replaced']
+	new_res['unchanged'] = res['unchanged']
+	if statement == 'delete':
+		log.debug(f'res: {res}')
+		for c in res['changes']:
+			deleted = c['new_val']
+			docs.append(deleted)
+		new_res['result'] = docs
+	elif statement in list_statements:
 		log.debug(f'data: {data}')
 		log.debug('docs from changes')
-		new_res = {}
 		for c in res['changes']:
 			inserted = c['new_val']
 			docs.append(Document(_table=table, **inserted))
 		new_res['result'] = docs
-		new_res['errors'] = res['errors']
-		new_res['skipped'] = res['skipped']
-		new_res['deleted'] = res['deleted']
-		new_res['inserted'] = res['inserted']
-		new_res['replaced'] = res['replaced']
-		new_res['unchanged'] = res['unchanged']
-		return new_res
-	#if len(docs) == 1:
-	#	return docs[0]
-	return docs
+
+	return new_res
 
 
 handled_statements = [
 	'insert',
 	'filter',
 	'update',
+	'delete',
 	'table',
 	'get',
 	'nth',
@@ -268,8 +263,14 @@ def update(self, *args, **kwargs):
 	return ast.Update(self, *[ast.func_wrap(arg) for arg in args], **kwargs)
 
 
+def delete(self, *args, **kwargs):
+	kwargs['return_changes'] = True
+	return ast.Delete(self, *args, **kwargs)
+
+
 ast.RqlQuery.run = run
 ast.RqlQuery.update = update
+ast.RqlQuery.delete = delete
 ast.RqlQuery.__init__ = __init__
 ast.Table.get = get
 
