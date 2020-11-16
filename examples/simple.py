@@ -1,4 +1,3 @@
-#from prethink import Table, Schema, fields
 import uuid
 from prethink import Table, connect, row
 from marshmallow import Schema, fields

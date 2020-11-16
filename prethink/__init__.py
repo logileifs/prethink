@@ -29,6 +29,7 @@ current_db = 'test'
 connections = []
 registry = {}
 db = r.db(current_db)
+p = r
 
 logging.basicConfig(level='INFO')
 log = logging.getLogger(__name__)
@@ -53,10 +54,10 @@ class Pool:
 		for x in range(0, self.size):
 			self.connections.put(await self.connect(*args, **kwargs))
 
-	def close(self, noreply_wait=False):
+	async def close(self, noreply_wait=False):
 		for x in range(0, self.size):
 			conn = self.connections.get()
-			conn.close(noreply_wait=noreply_wait)
+			await conn.close(noreply_wait=noreply_wait)
 
 	def get_connection(self):
 		return self.connections.get()
@@ -99,8 +100,8 @@ async def connect(*args, **kwargs):
 		await tables_create()
 
 
-def close(noreply_wait=False):
-	pool.close(noreply_wait=noreply_wait)
+async def close(noreply_wait=False):
+	await pool.close(noreply_wait=noreply_wait)
 
 
 async def tables_create():
@@ -120,14 +121,16 @@ async def tables_create():
 				raise ex
 
 
-def get_connection():
-	global connections
-	return connections.pop()
+def create_db(db_name):
+	return r.db_create(db_name)
 
 
-def put_connection(c):
-	global connections
-	connections.append(c)
+def drop_db(db_name):
+	return r.db_drop(db_name)
+
+
+def list_db():
+	return r.db_list()
 
 
 def get(self, *args, **kwargs):
@@ -182,9 +185,22 @@ def handle_result(gen, data, table, statement=None):
 	docs = []
 	if statement == 'get' or statement == 'nth':
 		return Document(_table=table, **res)
+	if statement == 'insert' and isinstance(data, dict):
+		log.debug('statement: insert and data: dict')
+		new_res = {}
+		inserted = res['changes'][0]['new_val']
+		new_res['result'] = Document(_table=table, **inserted)
+		new_res['errors'] = res['errors']
+		new_res['skipped'] = res['skipped']
+		new_res['deleted'] = res['deleted']
+		new_res['inserted'] = res['inserted']
+		new_res['replaced'] = res['replaced']
+		new_res['unchanged'] = res['unchanged']
+		return new_res
 	if statement in cursor_statements:
 		docs = yield from handle_cursor(res, table, cls)
 	if statement in list_statements:
+		log.debug(f'data: {data}')
 		log.debug('docs from changes')
 		new_res = {}
 		for c in res['changes']:
